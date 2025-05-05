@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>Gruppe 3 Pre</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 0;
+      padding: 0;
+      background: url('hintergrund.jpg') no-repeat center center fixed;
+      background-size: cover;
+      color: white;
+      display: flex;
+    }
+
+    .overlay {
+      background: rgba(0, 0, 0, 0.6);
+      min-height: 100vh;
+      padding: 20px;
+      flex: 1;
+    }
+
+    .header {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-bottom: 30px;
+    }
+
+    .header h1 {
+      font-size: 2.5rem;
+      margin: 0;
+      text-align: center;
+    }
+
+    .container {
+      display: flex;
+      justify-content: space-around;
+      flex-wrap: wrap;
+      gap: 20px;
+      margin-left: 200px;
+    }
+
+    .box {
+      width: 45%;
+      padding: 15px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.2);
+      text-align: center;
+    }
+
+    .select-container {
+      margin-bottom: 10px;
+    }
+
+    select, input {
+      padding: 5px;
+      font-size: 16px;
+    }
+
+    canvas {
+      width: 100% !important;
+      height: 250px !important;
+      background: white;
+      border-radius: 5px;
+    }
+
+    .nav-container {
+      width: 200px;
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 100vh;
+      background: linear-gradient(to bottom, hotpink, black);
+      padding-top: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .nav-box {
+      margin: 15px 0;
+      text-align: center;
+      width: 90%;
+    }
+
+    .nav-box a {
+      display: block;
+      color: white;
+      text-decoration: none;
+      font-size: 18px;
+      padding: 10px;
+      border-radius: 5px;
+      background: rgba(255, 255, 255, 0.2);
+      box-shadow: 0 0 10px rgba(255, 20, 147, 0.8);
+      transition: background-color 0.3s, box-shadow 0.3s;
+    }
+
+    .nav-box a:hover {
+      background-color: rgba(255, 255, 255, 0.5);
+      box-shadow: 0 0 20px rgba(255, 105, 180, 1);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="nav-container">
+    <div class="nav-box">
+      <a href="Luftmesser.html">Startseite</a>
+    </div>
+    <div class="nav-box">
+      <a href="#">Luftqualität</a>
+    </div>
+    <div class="nav-box">
+      <a href="examples/Team/team.html">Team</a>
+    </div>
+  </div>
+
+  <div class="overlay">
+    <div class="header">
+      <h1>Gruppe 3 Pre</h1>
+    </div>
+
+    <div class="container">
+      <div class="box">
+        <h2>Temperatur</h2>
+        <div class="select-container">
+          <label for="tempXAxis">Zeiteinheit wählen: </label>
+          <select id="tempXAxis">
+            <option value="stunden">Stunden</option>
+            <option value="tage">Tage</option>
+            <option value="monate">Monate</option>
+          </select>
+        </div>
+        <div id="tempRangeContainer" class="select-container">
+          <label for="tempRange">Letzte <span id="tempRangeLabel">1</span> anzeigen</label>
+          <input type="range" id="tempRange" min="1" max="24" value="1">
+        </div>
+        <canvas id="tempChart"></canvas>
+      </div>
+
+      <div class="box">
+        <h2>Luftqualität</h2>
+        <div class="select-container">
+          <label for="airXAxis">Zeiteinheit wählen: </label>
+          <select id="airXAxis">
+            <option value="stunden">Stunden</option>
+            <option value="tage">Tage</option>
+            <option value="monate">Monate</option>
+          </select>
+        </div>
+        <div id="airRangeContainer" class="select-container">
+          <label for="airRange">Letzte <span id="airRangeLabel">1</span> anzeigen</label>
+          <input type="range" id="airRange" min="1" max="24" value="1">
+        </div>
+        <canvas id="airQualityChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const months = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
+
+    function getLastLabels(unit, count) {
+      const now = new Date();
+      let labels = [];
+
+      if (unit === "stunden") {
+        for (let i = count - 1; i >= 0; i--) {
+          const date = new Date(now.getTime() - i * 60 * 60 * 1000);
+          labels.push(date.getHours() + ":00");
+        }
+      } else if (unit === "tage") {
+        for (let i = count - 1; i >= 0; i--) {
+          const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+          labels.push(date.toLocaleDateString("de-DE", { weekday: 'short', day: '2-digit', month: '2-digit' }));
+        }
+      } else if (unit === "monate") {
+        for (let i = count - 1; i >= 0; i--) {
+          const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+          labels.push(months[date.getMonth()] + " " + date.getFullYear());
+        }
+      }
+
+      return labels;
+    }
+
+    async function fetchData(type, unit, count) {
+      // Simulierte Daten: erzeugt zufällige Werte
+      return Array.from({ length: count }, () => Math.floor(Math.random() * 50));
+    }
+
+    async function updateChart(chart, type, unit, count) {
+      const labels = getLastLabels(unit, count);
+      const data = await fetchData(type, unit, count);
+
+      chart.data.labels = labels;
+      chart.data.datasets[0].data = data;
+      chart.update();
+    }
+
+    function setupChart(canvasId, label, color) {
+      const ctx = document.getElementById(canvasId).getContext('2d');
+      return new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [{
+            label,
+            data: [],
+            borderColor: color,
+            fill: false,
+            tension: 0.3
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: true } },
+          scales: { x: { ticks: { autoSkip: true, maxTicksLimit: 15 } } }
+        }
+      });
+    }
+
+    const tempChart = setupChart("tempChart", "Temperatur (°C)", "red");
+    const airChart = setupChart("airQualityChart", "Luftqualität (AQI)", "blue");
+
+    function handleControl(unitSelectId, rangeInputId, rangeLabelId, chart, type) {
+      const unitSelect = document.getElementById(unitSelectId);
+      const rangeInput = document.getElementById(rangeInputId);
+      const rangeLabel = document.getElementById(rangeLabelId);
+
+      function updateUI() {
+        const unit = unitSelect.value;
+        let max = 24;
+        if (unit === "tage") max = 30;
+        else if (unit === "monate") max = 12;
+
+        rangeInput.max = max;
+        if (parseInt(rangeInput.value) > max) rangeInput.value = max;
+
+        rangeLabel.textContent = rangeInput.value;
+        updateChart(chart, type, unit, parseInt(rangeInput.value));
+      }
+
+      unitSelect.addEventListener('change', updateUI);
+      rangeInput.addEventListener('input', () => {
+        rangeLabel.textContent = rangeInput.value;
+        updateUI();
+      });
+
+      updateUI();
+    }
+
+    handleControl('tempXAxis', 'tempRange', 'tempRangeLabel', tempChart, 'temperatur');
+    handleControl('airXAxis', 'airRange', 'airRangeLabel', airChart, 'luftqualitaet');
+  </script>
+</body>
+</html>
