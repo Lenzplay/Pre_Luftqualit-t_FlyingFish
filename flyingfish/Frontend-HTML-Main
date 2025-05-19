@@ -129,6 +129,8 @@
         <div class="select-container">
           <label for="tempXAxis">Zeiteinheit wählen: </label>
           <select id="tempXAxis">
+            <option value="sekunden">Sekunden</option>
+            <option value="minuten">Minuten</option>
             <option value="stunden">Stunden</option>
             <option value="tage">Tage</option>
             <option value="monate">Monate</option>
@@ -136,16 +138,18 @@
         </div>
         <div id="tempRangeContainer" class="select-container">
           <label for="tempRange">Letzte <span id="tempRangeLabel">1</span> anzeigen</label>
-          <input type="range" id="tempRange" min="1" max="24" value="1">
+          <input type="range" id="tempRange" min="1" max="60" value="1">
         </div>
         <canvas id="tempChart"></canvas>
       </div>
-
+    
       <div class="box">
         <h2>Luftqualität</h2>
         <div class="select-container">
           <label for="airXAxis">Zeiteinheit wählen: </label>
           <select id="airXAxis">
+            <option value="sekunden">Sekunden</option>
+            <option value="minuten">Minuten</option>
             <option value="stunden">Stunden</option>
             <option value="tage">Tage</option>
             <option value="monate">Monate</option>
@@ -153,108 +157,128 @@
         </div>
         <div id="airRangeContainer" class="select-container">
           <label for="airRange">Letzte <span id="airRangeLabel">1</span> anzeigen</label>
-          <input type="range" id="airRange" min="1" max="24" value="1">
+          <input type="range" id="airRange" min="1" max="60" value="1">
         </div>
         <canvas id="airQualityChart"></canvas>
       </div>
     </div>
-  </div>
-
-  <script>
-    const months = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
-
-    function getLastLabels(unit, count) {
-      const now = new Date();
-      let labels = [];
-
-      if (unit === "stunden") {
-        for (let i = count - 1; i >= 0; i--) {
-          const date = new Date(now.getTime() - i * 60 * 60 * 1000);
-          labels.push(date.getHours() + ":00");
+    
+    <script>
+      const months = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
+    
+      function getLastLabels(unit, count) {
+        const now = new Date();
+        let labels = [];
+    
+        if (unit === "sekunden") {
+          for (let i = count - 1; i >= 0; i--) {
+            const date = new Date(now.getTime() - i * 1000);
+            labels.push(
+              date.getMinutes().toString().padStart(2, '0') + ":" +
+              date.getSeconds().toString().padStart(2, '0')
+            );
+          }
+        } else if (unit === "minuten") {
+          for (let i = count - 1; i >= 0; i--) {
+            const date = new Date(now.getTime() - i * 60 * 1000);
+            labels.push(
+              date.getHours().toString().padStart(2, '0') + ":" +
+              date.getMinutes().toString().padStart(2, '0')
+            );
+          }
+        } else if (unit === "stunden") {
+          for (let i = count - 1; i >= 0; i--) {
+            const date = new Date(now.getTime() - i * 60 * 60 * 1000);
+            labels.push(date.getHours() + ":00");
+          }
+        } else if (unit === "tage") {
+          for (let i = count - 1; i >= 0; i--) {
+            const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+            labels.push(date.toLocaleDateString("de-DE", { weekday: 'short', day: '2-digit', month: '2-digit' }));
+          }
+        } else if (unit === "monate") {
+          for (let i = count - 1; i >= 0; i--) {
+            const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            labels.push(months[date.getMonth()] + " " + date.getFullYear());
+          }
         }
-      } else if (unit === "tage") {
-        for (let i = count - 1; i >= 0; i--) {
-          const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
-          labels.push(date.toLocaleDateString("de-DE", { weekday: 'short', day: '2-digit', month: '2-digit' }));
-        }
-      } else if (unit === "monate") {
-        for (let i = count - 1; i >= 0; i--) {
-          const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-          labels.push(months[date.getMonth()] + " " + date.getFullYear());
-        }
+    
+        return labels;
       }
+    
+      async function fetchData(type, unit, count) {
+        async function fetchData(type, unit, count) {
+        const url = `/api/data/${type}/${unit}/${count}`;
+        const response = await fetch(url);
+        const data = await response.json();
+        return data;
+}
 
-      return labels;
-    }
-
-    async function fetchData(type, unit, count) {
-      // Simulierte Daten: erzeugt zufällige Werte
-      return Array.from({ length: count }, () => Math.floor(Math.random() * 50));
-    }
-
-    async function updateChart(chart, type, unit, count) {
-      const labels = getLastLabels(unit, count);
-      const data = await fetchData(type, unit, count);
-
-      chart.data.labels = labels;
-      chart.data.datasets[0].data = data;
-      chart.update();
-    }
-
-    function setupChart(canvasId, label, color) {
-      const ctx = document.getElementById(canvasId).getContext('2d');
-      return new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: [],
-          datasets: [{
-            label,
-            data: [],
-            borderColor: color,
-            fill: false,
-            tension: 0.3
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: { legend: { display: true } },
-          scales: { x: { ticks: { autoSkip: true, maxTicksLimit: 15 } } }
-        }
-      });
-    }
-
-    const tempChart = setupChart("tempChart", "Temperatur (°C)", "red");
-    const airChart = setupChart("airQualityChart", "Luftqualität (AQI)", "blue");
-
-    function handleControl(unitSelectId, rangeInputId, rangeLabelId, chart, type) {
-      const unitSelect = document.getElementById(unitSelectId);
-      const rangeInput = document.getElementById(rangeInputId);
-      const rangeLabel = document.getElementById(rangeLabelId);
-
-      function updateUI() {
-        const unit = unitSelect.value;
-        let max = 24;
-        if (unit === "tage") max = 30;
-        else if (unit === "monate") max = 12;
-
-        rangeInput.max = max;
-        if (parseInt(rangeInput.value) > max) rangeInput.value = max;
-
-        rangeLabel.textContent = rangeInput.value;
-        updateChart(chart, type, unit, parseInt(rangeInput.value));
       }
-
-      unitSelect.addEventListener('change', updateUI);
-      rangeInput.addEventListener('input', () => {
-        rangeLabel.textContent = rangeInput.value;
+    
+      async function updateChart(chart, type, unit, count) {
+        const labels = getLastLabels(unit, count);
+        const data = await fetchData(type, unit, count);
+    
+        chart.data.labels = labels;
+        chart.data.datasets[0].data = data;
+        chart.update();
+      }
+    
+      function setupChart(canvasId, label, color) {
+        const ctx = document.getElementById(canvasId).getContext('2d');
+        return new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: [],
+            datasets: [{
+              label,
+              data: [],
+              borderColor: color,
+              fill: false,
+              tension: 0.3
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: { legend: { display: true } },
+            scales: { x: { ticks: { autoSkip: true, maxTicksLimit: 15 } } }
+          }
+        });
+      }
+    
+      const tempChart = setupChart("tempChart", "Temperatur (°C)", "red");
+      const airChart = setupChart("airQualityChart", "Luftqualität (AQI)", "blue");
+    
+      function handleControl(unitSelectId, rangeInputId, rangeLabelId, chart, type) {
+        const unitSelect = document.getElementById(unitSelectId);
+        const rangeInput = document.getElementById(rangeInputId);
+        const rangeLabel = document.getElementById(rangeLabelId);
+    
+        function updateUI() {
+          const unit = unitSelect.value;
+          let max = 24;
+          if (unit === "sekunden" || unit === "minuten") max = 60;
+          else if (unit === "tage") max = 30;
+          else if (unit === "monate") max = 12;
+    
+          rangeInput.max = max;
+          if (parseInt(rangeInput.value) > max) rangeInput.value = max;
+    
+          rangeLabel.textContent = rangeInput.value;
+          updateChart(chart, type, unit, parseInt(rangeInput.value));
+        }
+    
+        unitSelect.addEventListener('change', updateUI);
+        rangeInput.addEventListener('input', () => {
+          rangeLabel.textContent = rangeInput.value;
+          updateUI();
+        });
+    
         updateUI();
-      });
-
-      updateUI();
-    }
-
-    handleControl('tempXAxis', 'tempRange', 'tempRangeLabel', tempChart, 'temperatur');
-    handleControl('airXAxis', 'airRange', 'airRangeLabel', airChart, 'luftqualitaet');
-  </script>
-</body>
-</html>
+      }
+    
+      handleControl('tempXAxis', 'tempRange', 'tempRangeLabel', tempChart, 'temperatur');
+      handleControl('airXAxis', 'airRange', 'airRangeLabel', airChart, 'luftqualitaet');
+    </script>
+    
